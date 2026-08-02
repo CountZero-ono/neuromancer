@@ -4,7 +4,7 @@
 
 ![Neuromancer Cyberpunk Telemetry HUD](assets/preview.png)
 
-**Neuromancer** upgrades your `antigravity-cli` statusline into a high-density, crash-proof **Onyx Deck HUD** equipped with dynamic Cyberpunk Amber indicator gauges, fail-safe Python execution, and accurate dual-quota refresh timers.
+**Neuromancer** upgrades your `antigravity-cli` statusline into a high-density, crash-proof **Onyx Deck HUD** equipped with dynamic Cyberpunk Amber indicator gauges, fail-safe Python execution, dual-quota refresh timers, and automatic laptop battery/AC diagnostics.
 
 ---
 
@@ -13,6 +13,7 @@
 - **⚡ Fail-Safe Python Engine:** Written in pure Python 3 with `try/except` guards. Zero terminal crashes from missing JSON attributes, null fields, or shell pipeline errors.
 - **▰▰▰ Cyberpunk Amber Gauges:** Dynamic 3-tier Amber indicator bars for Context Window usage and Model Quotas (`5H` and `7D`).
 - **⌛ Accurate Dual-Quota Timers:** Correctly tracks both your short-term 5-hour rolling rate limit (**`5H`**) and your weekly quota cycle (**`7D`**) independently.
+- **🔋 Laptop Power Diagnostics:** Auto-detects AC mains vs battery percentage (`[PWR ⚡ AC]` / `[PWR 🔋 75%]`), hiding automatically on desktop machines.
 - **🖥️ Onyx Deck Framework:** Clean 2-row layout (`┌─` / `└─`), Matrix Cyan accents, dirty Git indicators, and real-time CPU load & RAM diagnostics.
 - **🚀 1-Step Installation:** Auto-configures `~/.gemini/antigravity-cli/settings.json`.
 
@@ -23,13 +24,13 @@
 Run this single command in your terminal:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/neuromancer/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/CountZero-ono/neuromancer/main/install.sh | bash
 ```
 
 Or install manually:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/neuromancer.git
+git clone https://github.com/CountZero-ono/neuromancer.git
 cd neuromancer
 chmod +x install.sh && ./install.sh
 ```
