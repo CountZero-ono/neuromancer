@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Neuromancer — Cyberpunk Telemetry Deck & Statusline for Antigravity CLI
-Onyx & Cyberpunk Amber Telemetry HUD with Fail-Safe Execution and Dual Quota Timers
+Onyx & Cyberpunk Amber Telemetry HUD with Fail-Safe Execution, Dual Quota Timers, and Power Diagnostics
 """
 
 import sys
@@ -149,6 +149,69 @@ def get_system_telemetry() -> tuple[str, str]:
     except Exception:
         pass
     return ram_str, load_str
+
+
+def get_power_telemetry() -> str:
+    """Reads AC mains and Battery level safely from /sys/class/power_supply or pmset."""
+    try:
+        sys_power = "/sys/class/power_supply"
+        if os.path.exists(sys_power):
+            ac_online = False
+            bat_cap = -1
+
+            for dev in os.listdir(sys_power):
+                dev_path = os.path.join(sys_power, dev)
+                if not os.path.isdir(dev_path):
+                    continue
+
+                online_file = os.path.join(dev_path, "online")
+                if os.path.exists(online_file):
+                    try:
+                        with open(online_file, "r") as f:
+                            if f.read().strip() == "1":
+                                ac_online = True
+                    except Exception:
+                        pass
+
+                cap_file = os.path.join(dev_path, "capacity")
+                if os.path.exists(cap_file):
+                    try:
+                        with open(cap_file, "r") as f:
+                            bat_cap = int(f.read().strip())
+                    except Exception:
+                        pass
+
+            if bat_cap >= 0:
+                if ac_online:
+                    cap_str = f" ({bat_cap}%)" if bat_cap < 100 else ""
+                    return f"{GREEN_PHOSPHOR}⚡ AC{cap_str}{RESET}"
+                else:
+                    if bat_cap >= 50:
+                        c = GREEN_PHOSPHOR
+                        icon = "🔋"
+                    elif bat_cap >= 20:
+                        c = AMBER_WARM
+                        icon = "🔋"
+                    else:
+                        c = RED_ALERT
+                        icon = "🪫"
+                    return f"{icon} {c}{bat_cap}%{RESET}"
+
+        if sys.platform == "darwin":
+            res = subprocess.run(["pmset", "-g", "batt"], capture_output=True, text=True, timeout=0.5)
+            if res.returncode == 0:
+                match = re.search(r"(\d+)%", res.stdout)
+                if match:
+                    cap = int(match.group(1))
+                    is_ac = "AC Power" in res.stdout
+                    if is_ac:
+                        cap_str = f" ({cap}%)" if cap < 100 else ""
+                        return f"{GREEN_PHOSPHOR}⚡ AC{cap_str}{RESET}"
+                    c = GREEN_PHOSPHOR if cap >= 50 else (AMBER_WARM if cap >= 20 else RED_ALERT)
+                    return f"🔋 {c}{cap}%{RESET}"
+    except Exception:
+        pass
+    return ""
 
 
 def get_git_info(cwd: str) -> tuple[str, bool]:
@@ -307,6 +370,12 @@ def render_deck(data: dict) -> str:
         if deck_status and cols >= 150:
             deck_badge = f"{BRACKET_COLOR}[{RESET}{WHITE_BRIGHT}DECK{RESET} {' '.join(deck_status)}{BRACKET_COLOR}]{RESET}"
 
+        # 10. Power / Battery Badge
+        pwr_str = get_power_telemetry()
+        pwr_badge = ""
+        if pwr_str and cols >= 160:
+            pwr_badge = f"{BRACKET_COLOR}[{RESET}{WHITE_BRIGHT}PWR{RESET} {pwr_str}{BRACKET_COLOR}]{RESET}"
+
         # Assemble ROW 2
         row2_parts = [f"{ctx_gauge}{tok_info}"]
         if quota_str:
@@ -315,6 +384,8 @@ def render_deck(data: dict) -> str:
             row2_parts.append(sys_badge)
         if deck_badge:
             row2_parts.append(deck_badge)
+        if pwr_badge:
+            row2_parts.append(pwr_badge)
 
         row2 = f"{FRAME_COLOR}└─{RESET} " + f" {FRAME_COLOR}──{RESET} ".join(row2_parts)
 
