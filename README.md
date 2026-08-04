@@ -10,11 +10,13 @@
 
 ## 🔥 Features
 
-- **⚡ Fail-Safe Python Engine:** Written in pure Python 3 with `try/except` guards. Zero terminal crashes from missing JSON attributes, null fields, or shell pipeline errors.
+- **⚡ Fail-Safe Python Engine:** Pure Python 3 with type-safe numeric guards. Zero crashes from missing JSON attributes, `null` fields, `'N/A'` string values, or session resumptions.
+- **📊 Context Window Ratio & Token Stats:** Displays exact context ceiling (`132k / 1M`) along with input/output token breakdowns (`(↑120k ↓12k)`).
+- **📐 Responsive Adaptive HUD:** Maintains a 2-line deck (`┌─` / `└─`) on standard screens and automatically wraps into a 3-line tree (`┌─` / `├─` / `└─`) on narrow terminals (<100 cols) so stats are never clipped.
 - **▰▰▰ Cyberpunk Amber Gauges:** Dynamic 3-tier Amber indicator bars for Context Window usage and Model Quotas (`5H` and `7D`).
 - **⌛ Accurate Dual-Quota Timers:** Correctly tracks both your short-term 5-hour rolling rate limit (**`5H`**) and your weekly quota cycle (**`7D`**) independently.
 - **🔋 Laptop Power Diagnostics:** Auto-detects AC mains vs battery percentage (`[PWR ⚡ AC]` / `[PWR 🔋 75%]`), hiding automatically on desktop machines.
-- **🖥️ Onyx Deck Framework:** Clean 2-row layout (`┌─` / `└─`), Matrix Cyan accents, dirty Git indicators, and real-time CPU load & RAM diagnostics.
+- **🖥️ Onyx Deck Framework:** Matrix Cyan accents, dirty Git indicators, and real-time CPU load & RAM diagnostics.
 - **🚀 1-Step Installation:** Auto-configures `~/.gemini/antigravity-cli/settings.json`.
 
 ---
