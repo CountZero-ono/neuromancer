@@ -46,9 +46,11 @@ def format_tokens(n: int) -> str:
     try:
         n = int(n)
         if n >= 1_000_000:
-            return f"{n / 1_000_000:.1f}M"
+            val = n / 1_000_000
+            return f"{val:.1f}".rstrip('0').rstrip('.') + "M"
         if n >= 1_000:
-            return f"{n / 1_000:.0f}k"
+            val = n / 1_000
+            return f"{val:.1f}".rstrip('0').rstrip('.') + "k"
         return str(n)
     except Exception:
         return "0"
@@ -246,6 +248,9 @@ def get_git_info(cwd: str) -> tuple[str, bool]:
 # ─── Render Neuromancer Deck Telemetry ─────────────────────────────────────────
 def render_deck(data: dict) -> str:
     try:
+        if not isinstance(data, dict):
+            data = {}
+
         cols = int(data.get("terminal_width") or 80)
         
         # 1. State
@@ -262,7 +267,7 @@ def render_deck(data: dict) -> str:
             state_str = f"{WHITE_BRIGHT}{ICON_UNKNOWN} {state.upper()}{RESET}"
 
         # 2. Model
-        model_obj = data.get("model", {})
+        model_obj = data.get("model") or {}
         if isinstance(model_obj, dict):
             model_name = model_obj.get("display_name") or model_obj.get("id") or "AGY"
         else:
@@ -271,8 +276,9 @@ def render_deck(data: dict) -> str:
 
         # 3. Git Branch
         cwd = str(data.get("cwd") or "")
-        vcs_branch = str(data.get("vcs", {}).get("branch") or "")
-        vcs_dirty = bool(data.get("vcs", {}).get("dirty", False))
+        vcs_obj = data.get("vcs") or {}
+        vcs_branch = str(vcs_obj.get("branch") or "") if isinstance(vcs_obj, dict) else ""
+        vcs_dirty = bool(vcs_obj.get("dirty", False)) if isinstance(vcs_obj, dict) else False
         if not vcs_branch and cwd:
             vcs_branch, vcs_dirty = get_git_info(cwd)
 
@@ -283,14 +289,15 @@ def render_deck(data: dict) -> str:
             git_str = f"{branch_color}{ICON_VCS} {vcs_branch}{dirty_mark}{RESET}"
 
         # 4. Working Directory
-        cwd_short = shorten_path(cwd)
+        cwd_len = 15 if cols < 90 else 25
+        cwd_short = shorten_path(cwd, max_len=cwd_len)
         cwd_str = f"{BRACKET_COLOR}{ICON_DIR} {cwd_short}{RESET}" if cwd_short else ""
 
         # 5. Conversation ID
         conv_id = str(data.get("conversation_id") or "")
         conv_str = f"{FRAME_COLOR}{ICON_CONV} {conv_id[:8]}{RESET}" if conv_id else ""
 
-        # Assemble ROW 1 (Deck Status Header)
+        # Assemble Header Parts
         row1_parts = [f"{BRACKET_COLOR}[{RESET}DECK:{state_str}{BRACKET_COLOR}]{RESET}", model_str]
         if git_str:
             row1_parts.append(git_str)
@@ -299,31 +306,45 @@ def render_deck(data: dict) -> str:
         if conv_str and cols >= 110:
             row1_parts.append(conv_str)
 
-        sep = f" {FRAME_COLOR}·{RESET} "
-        row1 = f"{FRAME_COLOR}┌─{RESET} " + sep.join(row1_parts)
-
-        # ─── ROW 2: Gauges & Diagnostics ────────────────────────────────────────
-
-        # 6. Context Window Gauge
-        cw = data.get("context_window", {})
-        ctx_rem = float(cw.get("remaining_percentage", 100.0))
+        # 6. Context Window Gauge & Token Ratio
+        cw = data.get("context_window") or {}
+        if not isinstance(cw, dict):
+            cw = {}
+        ctx_rem = float(cw.get("remaining_percentage") or 100.0)
         ctx_used_pct = 100.0 - ctx_rem
-        in_t = int(cw.get("total_input_tokens") or 0)
-        out_t = int(cw.get("total_output_tokens") or 0)
-        ctx_size = int(cw.get("context_window_size") or 0)
-        ctx_used = in_t + out_t
+        in_t = int(cw.get("total_input_tokens") or cw.get("input_tokens") or 0)
+        out_t = int(cw.get("total_output_tokens") or cw.get("output_tokens") or 0)
+        ctx_size = int(cw.get("context_window_size") or cw.get("max_tokens") or cw.get("token_limit") or 0)
+        ctx_used = int(cw.get("used_tokens") or cw.get("current_usage") or (in_t + out_t))
 
-        ctx_gauge = make_amber_gauge("CTX", ctx_used_pct, length=8 if cols >= 120 else 6)
+        gauge_len = 8 if cols >= 120 else 6
+        ctx_gauge = make_amber_gauge("CTX", ctx_used_pct, length=gauge_len)
+
         tok_info = ""
-        if ctx_used > 0 and cols >= 140:
-            tok_info = f" {DIM}(↑{format_tokens(in_t)} ↓{format_tokens(out_t)}){RESET}"
+        if ctx_used > 0 or ctx_size > 0:
+            if ctx_size > 0:
+                tok_usage_str = f"{format_tokens(ctx_used)} / {format_tokens(ctx_size)}"
+            else:
+                tok_usage_str = f"{format_tokens(ctx_used)}"
+
+            io_str = f" (↑{format_tokens(in_t)} ↓{format_tokens(out_t)})" if (in_t > 0 or out_t > 0) else ""
+            tok_info = f" {CYAN}{tok_usage_str}{RESET}{DIM}{io_str}{RESET}"
+
+        ctx_section = f"{ctx_gauge}{tok_info}"
 
         # 7. Quota Gauges (5H & 7D)
-        quota_data = data.get("quota", {})
-        g_5h = quota_data.get("gemini-5h", {})
-        g_wk = quota_data.get("gemini-weekly", {})
-        tp_5h = quota_data.get("3p-5h", {})
-        tp_wk = quota_data.get("3p-weekly", {})
+        quota_data = data.get("quota") or {}
+        if not isinstance(quota_data, dict):
+            quota_data = {}
+        g_5h = quota_data.get("gemini-5h") or {}
+        g_wk = quota_data.get("gemini-weekly") or {}
+        tp_5h = quota_data.get("3p-5h") or {}
+        tp_wk = quota_data.get("3p-weekly") or {}
+
+        if not isinstance(g_5h, dict): g_5h = {}
+        if not isinstance(g_wk, dict): g_wk = {}
+        if not isinstance(tp_5h, dict): tp_5h = {}
+        if not isinstance(tp_wk, dict): tp_wk = {}
 
         is_3p = "gemini" not in model_name.lower()
         if is_3p and (tp_5h.get("remaining_fraction") is not None or tp_wk.get("remaining_fraction") is not None):
@@ -346,19 +367,18 @@ def render_deck(data: dict) -> str:
             pct_wk = float(q_wk_frac) * 100.0
             quota_parts.append(make_amber_gauge("7D", pct_wk, reset_sec=q_wk_sec, length=6))
 
-        quota_str = f" {FRAME_COLOR}──{RESET} ".join(quota_parts)
-
         # 8. System Resources Badge
         ram_str, load_str = get_system_telemetry()
         sys_badge = ""
-        if ram_str and load_str and cols >= 130:
+        if ram_str and load_str and cols >= 120:
             sys_badge = f"{BRACKET_COLOR}[{RESET}{WHITE_BRIGHT}SYS{RESET} ram:{ram_str} ld:{load_str}{BRACKET_COLOR}]{RESET}"
 
         # 9. Tasks / Subagents / Sandbox
         task_cnt = int(data.get("task_count") or 0)
         sub_cnt = len(data.get("subagents") or []) if isinstance(data.get("subagents"), list) else 0
         art_cnt = int(data.get("artifact_count") or 0)
-        sb_enabled = bool(data.get("sandbox", {}).get("enabled", False))
+        sb_obj = data.get("sandbox") or {}
+        sb_enabled = bool(sb_obj.get("enabled", False)) if isinstance(sb_obj, dict) else False
 
         deck_status = []
         if task_cnt > 0 or sub_cnt > 0 or art_cnt > 0:
@@ -367,32 +387,57 @@ def render_deck(data: dict) -> str:
             deck_status.append("sandbox:ON")
 
         deck_badge = ""
-        if deck_status and cols >= 150:
+        if deck_status and cols >= 140:
             deck_badge = f"{BRACKET_COLOR}[{RESET}{WHITE_BRIGHT}DECK{RESET} {' '.join(deck_status)}{BRACKET_COLOR}]{RESET}"
 
         # 10. Power / Battery Badge
         pwr_str = get_power_telemetry()
         pwr_badge = ""
-        if pwr_str and cols >= 160:
+        if pwr_str and cols >= 150:
             pwr_badge = f"{BRACKET_COLOR}[{RESET}{WHITE_BRIGHT}PWR{RESET} {pwr_str}{BRACKET_COLOR}]{RESET}"
 
-        # Assemble ROW 2
-        row2_parts = [f"{ctx_gauge}{tok_info}"]
-        if quota_str:
-            row2_parts.append(quota_str)
-        if sys_badge:
-            row2_parts.append(sys_badge)
-        if deck_badge:
-            row2_parts.append(deck_badge)
-        if pwr_badge:
-            row2_parts.append(pwr_badge)
+        sep = f" {FRAME_COLOR}·{RESET} "
+        dash_sep = f" {FRAME_COLOR}──{RESET} "
 
-        row2 = f"{FRAME_COLOR}└─{RESET} " + f" {FRAME_COLOR}──{RESET} ".join(row2_parts)
+        # Layout Selection (2-line default, 3-line when cols < 100)
+        if cols >= 100:
+            # 2-Line Standard Layout
+            row1 = f"{FRAME_COLOR}┌─{RESET} " + sep.join(row1_parts)
+            
+            row2_parts = [ctx_section]
+            if quota_parts:
+                row2_parts.append(dash_sep.join(quota_parts))
+            if sys_badge:
+                row2_parts.append(sys_badge)
+            if deck_badge:
+                row2_parts.append(deck_badge)
+            if pwr_badge:
+                row2_parts.append(pwr_badge)
+                
+            row2 = f"{FRAME_COLOR}└─{RESET} " + dash_sep.join(row2_parts)
+            return f"{row1}\n{row2}"
 
-        return f"{row1}\n{row2}"
+        else:
+            # < 100 cols: 3-Line Responsive Wrapped Layout
+            line1 = f"{FRAME_COLOR}┌─{RESET} " + sep.join(row1_parts)
+            line2 = f"{FRAME_COLOR}├─{RESET} {ctx_section}"
+
+            line3_parts = []
+            if quota_parts:
+                line3_parts.append(dash_sep.join(quota_parts))
+            if sys_badge:
+                line3_parts.append(sys_badge)
+
+            if line3_parts:
+                line3 = f"{FRAME_COLOR}└─{RESET} " + dash_sep.join(line3_parts)
+                return f"{line1}\n{line2}\n{line3}"
+            else:
+                line2_alt = f"{FRAME_COLOR}└─{RESET} {ctx_section}"
+                return f"{line1}\n{line2_alt}"
+
     except Exception:
-        # Ultimate fail-safe fallback
-        return f"\033[90m┌─ [DECK:READY] AGY Neuromancer Statusline\n└─ [NEURAL.HUD Online]\033[0m"
+        # Ultimate fail-safe fallback with vibrant colors
+        return f"{BRACKET_COLOR}┌─[{RESET}DECK:{GREEN_PHOSPHOR}● READY{RESET}{BRACKET_COLOR}]{RESET} {CYAN}{BOLD}⚡ AGY Neuromancer Statusline{RESET}\n{FRAME_COLOR}└─{RESET} {BRACKET_COLOR}[{RESET}{WHITE_BRIGHT}NEURAL.HUD Online{RESET}{BRACKET_COLOR}]{RESET}"
 
 
 # ─── Main Streaming Input Receiver ─────────────────────────────────────────────
