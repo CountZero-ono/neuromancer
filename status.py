@@ -41,10 +41,27 @@ ICON_DIR = ""
 ICON_RESET = "⌛"
 ICON_HOST = "󰒋"
 
-# ─── Helper Functions ──────────────────────────────────────────────────────────
+def safe_int(val, default: int = 0) -> int:
+    try:
+        if val is None:
+            return default
+        return int(val)
+    except (ValueError, TypeError):
+        return default
+
+
+def safe_float(val, default: float = 0.0) -> float:
+    try:
+        if val is None:
+            return default
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
+
 def format_tokens(n: int) -> str:
     try:
-        n = int(n)
+        n = safe_int(n, 0)
         if n >= 1_000_000:
             val = n / 1_000_000
             return f"{val:.1f}".rstrip('0').rstrip('.') + "M"
@@ -58,7 +75,7 @@ def format_tokens(n: int) -> str:
 
 def format_reset_time(sec: float) -> str:
     try:
-        sec = int(sec)
+        sec = safe_int(sec, 0)
         if sec <= 0:
             return ""
         days = sec // 86400
@@ -81,13 +98,14 @@ def format_reset_time(sec: float) -> str:
 def make_amber_gauge(label: str, pct: float, reset_sec: float = -1, length: int = 8) -> str:
     """Renders a Neuromancer Amber Segmented Gauge: [LABEL ▰▰▰▰▰▱▱▱▱▱ 65% ⌛1h]"""
     try:
-        pct = max(0.0, min(100.0, float(pct)))
-        filled_count = int(round(pct * length / 100.0))
+        pct_val = safe_float(pct, 0.0)
+        pct_val = max(0.0, min(100.0, pct_val))
+        filled_count = safe_int(round(pct_val * length / 100.0), 0)
 
         # Color based on remaining %
-        if pct > 50:
+        if pct_val > 50:
             fill_color = AMBER_BRIGHT
-        elif pct >= 20:
+        elif pct_val >= 20:
             fill_color = AMBER_WARM
         else:
             fill_color = RED_ALERT
@@ -96,13 +114,14 @@ def make_amber_gauge(label: str, pct: float, reset_sec: float = -1, length: int 
         empty_str = f"{SHADOW_GRAY}{'▱' * (length - filled_count)}{RESET}"
 
         reset_str = ""
-        if reset_sec > 0:
-            r_fmt = format_reset_time(reset_sec)
+        r_sec = safe_float(reset_sec, -1.0)
+        if r_sec > 0:
+            r_fmt = format_reset_time(r_sec)
             if r_fmt:
                 reset_str = f" {AMBER_BRIGHT}{ICON_RESET}{r_fmt}{RESET}"
 
         lbl_colored = f"{WHITE_BRIGHT}{label}{RESET}"
-        pct_colored = f"{fill_color}{pct:.0f}%{RESET}"
+        pct_colored = f"{fill_color}{pct_val:.0f}%{RESET}"
 
         return f"{BRACKET_COLOR}[{RESET}{lbl_colored} {filled_str}{empty_str} {pct_colored}{reset_str}{BRACKET_COLOR}]{RESET}"
     except Exception:
@@ -251,7 +270,7 @@ def render_deck(data: dict) -> str:
         if not isinstance(data, dict):
             data = {}
 
-        cols = int(data.get("terminal_width") or 80)
+        cols = safe_int(data.get("terminal_width"), 80)
         
         # 1. State
         state = str(data.get("agent_state") or "idle").lower()
@@ -310,12 +329,12 @@ def render_deck(data: dict) -> str:
         cw = data.get("context_window") or {}
         if not isinstance(cw, dict):
             cw = {}
-        ctx_rem = float(cw.get("remaining_percentage") or 100.0)
+        ctx_rem = safe_float(cw.get("remaining_percentage"), 100.0)
         ctx_used_pct = 100.0 - ctx_rem
-        in_t = int(cw.get("total_input_tokens") or cw.get("input_tokens") or 0)
-        out_t = int(cw.get("total_output_tokens") or cw.get("output_tokens") or 0)
-        ctx_size = int(cw.get("context_window_size") or cw.get("max_tokens") or cw.get("token_limit") or 0)
-        ctx_used = int(cw.get("used_tokens") or cw.get("current_usage") or (in_t + out_t))
+        in_t = safe_int(cw.get("total_input_tokens") or cw.get("input_tokens"), 0)
+        out_t = safe_int(cw.get("total_output_tokens") or cw.get("output_tokens"), 0)
+        ctx_size = safe_int(cw.get("context_window_size") or cw.get("max_tokens") or cw.get("token_limit"), 0)
+        ctx_used = safe_int(cw.get("used_tokens") or cw.get("current_usage"), in_t + out_t)
 
         gauge_len = 8 if cols >= 120 else 6
         ctx_gauge = make_amber_gauge("CTX", ctx_used_pct, length=gauge_len)
@@ -349,23 +368,27 @@ def render_deck(data: dict) -> str:
         is_3p = "gemini" not in model_name.lower()
         if is_3p and (tp_5h.get("remaining_fraction") is not None or tp_wk.get("remaining_fraction") is not None):
             q_5h_frac = tp_5h.get("remaining_fraction")
-            q_5h_sec = float(tp_5h.get("reset_in_seconds") or -1)
+            q_5h_sec = safe_float(tp_5h.get("reset_in_seconds"), -1.0)
             q_wk_frac = tp_wk.get("remaining_fraction")
-            q_wk_sec = float(tp_wk.get("reset_in_seconds") or -1)
+            q_wk_sec = safe_float(tp_wk.get("reset_in_seconds"), -1.0)
         else:
             q_5h_frac = g_5h.get("remaining_fraction")
-            q_5h_sec = float(g_5h.get("reset_in_seconds") or -1)
+            q_5h_sec = safe_float(g_5h.get("reset_in_seconds"), -1.0)
             q_wk_frac = g_wk.get("remaining_fraction")
-            q_wk_sec = float(g_wk.get("reset_in_seconds") or -1)
+            q_wk_sec = safe_float(g_wk.get("reset_in_seconds"), -1.0)
 
         quota_parts = []
         if q_5h_frac is not None:
-            pct_5h = float(q_5h_frac) * 100.0
-            quota_parts.append(make_amber_gauge("5H", pct_5h, reset_sec=q_5h_sec, length=6))
+            val_5h = safe_float(q_5h_frac, -1.0)
+            if val_5h >= 0:
+                pct_5h = val_5h * 100.0
+                quota_parts.append(make_amber_gauge("5H", pct_5h, reset_sec=q_5h_sec, length=6))
 
         if q_wk_frac is not None:
-            pct_wk = float(q_wk_frac) * 100.0
-            quota_parts.append(make_amber_gauge("7D", pct_wk, reset_sec=q_wk_sec, length=6))
+            val_wk = safe_float(q_wk_frac, -1.0)
+            if val_wk >= 0:
+                pct_wk = val_wk * 100.0
+                quota_parts.append(make_amber_gauge("7D", pct_wk, reset_sec=q_wk_sec, length=6))
 
         # 8. System Resources Badge
         ram_str, load_str = get_system_telemetry()
@@ -374,9 +397,9 @@ def render_deck(data: dict) -> str:
             sys_badge = f"{BRACKET_COLOR}[{RESET}{WHITE_BRIGHT}SYS{RESET} ram:{ram_str} ld:{load_str}{BRACKET_COLOR}]{RESET}"
 
         # 9. Tasks / Subagents / Sandbox
-        task_cnt = int(data.get("task_count") or 0)
+        task_cnt = safe_int(data.get("task_count"), 0)
         sub_cnt = len(data.get("subagents") or []) if isinstance(data.get("subagents"), list) else 0
-        art_cnt = int(data.get("artifact_count") or 0)
+        art_cnt = safe_int(data.get("artifact_count"), 0)
         sb_obj = data.get("sandbox") or {}
         sb_enabled = bool(sb_obj.get("enabled", False)) if isinstance(sb_obj, dict) else False
 
