@@ -39,6 +39,7 @@ ICON_MODEL = "⚡"
 ICON_CONV = "󰍪"
 ICON_DIR = ""
 ICON_RESET = "⌛"
+ICON_PROJ = "📦"
 ICON_HOST = "󰒋"
 
 def safe_int(val, default: int = 0) -> int:
@@ -264,6 +265,32 @@ def get_git_info(cwd: str) -> tuple[str, bool]:
         return "", False
 
 
+def get_project_name(data: dict, cwd: str) -> str:
+    """Determines the project name from telemetry JSON, git root, or cwd folder name."""
+    try:
+        if isinstance(data, dict):
+            p_name = str(data.get("project_name") or data.get("project") or data.get("workspace_name") or "").strip()
+            if p_name:
+                return p_name
+
+        if cwd and os.path.exists(cwd):
+            res = subprocess.run(
+                ["git", "-C", cwd, "rev-parse", "--show-toplevel"],
+                capture_output=True,
+                text=True,
+                timeout=0.6,
+            )
+            if res.returncode == 0:
+                top_dir = res.stdout.strip()
+                if top_dir:
+                    return os.path.basename(top_dir)
+
+            return os.path.basename(os.path.abspath(cwd))
+    except Exception:
+        pass
+    return ""
+
+
 # ─── Render Neuromancer Deck Telemetry ─────────────────────────────────────────
 def render_deck(data: dict) -> str:
     try:
@@ -293,8 +320,12 @@ def render_deck(data: dict) -> str:
             model_name = str(model_obj or "AGY")
         model_str = f"{CYAN}{BOLD}{ICON_MODEL} {model_name}{RESET}"
 
-        # 3. Git Branch
+        # 3. Project Name
         cwd = str(data.get("cwd") or "")
+        proj_name = get_project_name(data, cwd)
+        proj_str = f"{MAGENTA_NEON}{ICON_PROJ} {proj_name}{RESET}" if proj_name else ""
+
+        # 4. Git Branch
         vcs_obj = data.get("vcs") or {}
         vcs_branch = str(vcs_obj.get("branch") or "") if isinstance(vcs_obj, dict) else ""
         vcs_dirty = bool(vcs_obj.get("dirty", False)) if isinstance(vcs_obj, dict) else False
@@ -307,17 +338,19 @@ def render_deck(data: dict) -> str:
             branch_color = RED_ALERT if vcs_dirty else CYAN
             git_str = f"{branch_color}{ICON_VCS} {vcs_branch}{dirty_mark}{RESET}"
 
-        # 4. Working Directory
+        # 5. Working Directory
         cwd_len = 15 if cols < 90 else 25
         cwd_short = shorten_path(cwd, max_len=cwd_len)
         cwd_str = f"{BRACKET_COLOR}{ICON_DIR} {cwd_short}{RESET}" if cwd_short else ""
 
-        # 5. Conversation ID
+        # 6. Conversation ID
         conv_id = str(data.get("conversation_id") or "")
         conv_str = f"{FRAME_COLOR}{ICON_CONV} {conv_id[:8]}{RESET}" if conv_id else ""
 
         # Assemble Header Parts
         row1_parts = [f"{BRACKET_COLOR}[{RESET}DECK:{state_str}{BRACKET_COLOR}]{RESET}", model_str]
+        if proj_str:
+            row1_parts.append(proj_str)
         if git_str:
             row1_parts.append(git_str)
         if cwd_str:

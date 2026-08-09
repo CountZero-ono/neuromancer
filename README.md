@@ -16,6 +16,7 @@
 - **▰▰▰ Cyberpunk Amber Gauges:** Dynamic 3-tier Amber indicator bars for Context Window usage and Model Quotas (`5H` and `7D`).
 - **⌛ Accurate Dual-Quota Timers:** Correctly tracks both your short-term 5-hour rolling rate limit (**`5H`**) and your weekly quota cycle (**`7D`**) independently.
 - **🔋 Laptop Power Diagnostics:** Auto-detects AC mains vs battery percentage (`[PWR ⚡ AC]` / `[PWR 🔋 75%]`), hiding automatically on desktop machines.
+- **📦 Project Telemetry Badge:** Auto-detects project workspace from telemetry JSON, Git repository root, or directory fallback (`📦 neuromancer`).
 - **🖥️ Onyx Deck Framework:** Matrix Cyan accents, dirty Git indicators, and real-time CPU load & RAM diagnostics.
 - **🚀 1-Step Installation:** Auto-configures `~/.gemini/antigravity-cli/settings.json`.
 
