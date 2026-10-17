@@ -14,7 +14,7 @@
 - **📊 Context Window Ratio & Token Stats:** Displays exact context ceiling (`132k / 1M`) along with input/output token breakdowns (`(↑120k ↓12k)`).
 - **📐 Responsive Adaptive HUD:** Maintains a 2-line deck (`┌─` / `└─`) on standard screens and automatically wraps into a 3-line tree (`┌─` / `├─` / `└─`) on narrow terminals (<100 cols) so stats are never clipped.
 - **▰▰▰ Cyberpunk Amber Gauges:** Dynamic 3-tier Amber indicator bars for Context Window usage and Model Quotas (`5H` and `7D`).
-- **⌛ Accurate Dual-Quota Timers:** Correctly tracks both your short-term 5-hour rolling rate limit (**`5H`**) and your weekly quota cycle (**`7D`**) independently.
+- **⌛ Accurate Dual-Quota Timers & Gemini 4 Argon Support:** Correctly tracks both your short-term 5-hour rolling rate limit (**`5H`**) and weekly quota (**`7D`**), with dedicated dynamic bucket resolution for **Gemini 4 Argon** separate weekly allowances (`[ARGON 7D]`), third-party models (`3P`), and custom backend pools.
 - **🔋 Laptop Power Diagnostics:** Auto-detects AC mains vs battery percentage (`[PWR ⚡ AC]` / `[PWR 🔋 75%]`), hiding automatically on desktop machines.
 - **📦 Project Telemetry Badge:** Auto-detects project workspace from telemetry JSON, Git repository root, or directory fallback (`📦 neuromancer`).
 - **🖥️ Onyx Deck Framework:** Matrix Cyan accents, dirty Git indicators, and real-time CPU load & RAM diagnostics.

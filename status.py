@@ -384,44 +384,98 @@ def render_deck(data: dict) -> str:
 
         ctx_section = f"{ctx_gauge}{tok_info}"
 
-        # 7. Quota Gauges (5H & 7D)
+        # 7. Quota Gauges (Adaptive Dynamic Resolution: Argon, Gemini, 3P, Custom)
         quota_data = data.get("quota") or {}
         if not isinstance(quota_data, dict):
             quota_data = {}
-        g_5h = quota_data.get("gemini-5h") or {}
-        g_wk = quota_data.get("gemini-weekly") or {}
-        tp_5h = quota_data.get("3p-5h") or {}
-        tp_wk = quota_data.get("3p-weekly") or {}
-
-        if not isinstance(g_5h, dict): g_5h = {}
-        if not isinstance(g_wk, dict): g_wk = {}
-        if not isinstance(tp_5h, dict): tp_5h = {}
-        if not isinstance(tp_wk, dict): tp_wk = {}
-
-        is_3p = "gemini" not in model_name.lower()
-        if is_3p and (tp_5h.get("remaining_fraction") is not None or tp_wk.get("remaining_fraction") is not None):
-            q_5h_frac = tp_5h.get("remaining_fraction")
-            q_5h_sec = safe_float(tp_5h.get("reset_in_seconds"), -1.0)
-            q_wk_frac = tp_wk.get("remaining_fraction")
-            q_wk_sec = safe_float(tp_wk.get("reset_in_seconds"), -1.0)
-        else:
-            q_5h_frac = g_5h.get("remaining_fraction")
-            q_5h_sec = safe_float(g_5h.get("reset_in_seconds"), -1.0)
-            q_wk_frac = g_wk.get("remaining_fraction")
-            q_wk_sec = safe_float(g_wk.get("reset_in_seconds"), -1.0)
 
         quota_parts = []
-        if q_5h_frac is not None:
-            val_5h = safe_float(q_5h_frac, -1.0)
-            if val_5h >= 0:
-                pct_5h = val_5h * 100.0
-                quota_parts.append(make_amber_gauge("5H", pct_5h, reset_sec=q_5h_sec, length=6))
+        model_lower = model_name.lower()
+        is_argon = "argon" in model_lower
+        is_3p = "gemini" not in model_lower
 
-        if q_wk_frac is not None:
-            val_wk = safe_float(q_wk_frac, -1.0)
-            if val_wk >= 0:
-                pct_wk = val_wk * 100.0
-                quota_parts.append(make_amber_gauge("7D", pct_wk, reset_sec=q_wk_sec, length=6))
+        found_5h = None
+        found_wk = None
+
+        if is_argon:
+            # Check Argon-specific buckets first
+            for k, b in quota_data.items():
+                if not isinstance(b, dict):
+                    continue
+                k_lower = k.lower()
+                if "argon" in k_lower:
+                    if "5h" in k_lower or "rolling" in k_lower or "short" in k_lower:
+                        found_5h = ("ARGON 5H" if cols >= 120 else "5H", b)
+                    elif "week" in k_lower or "7d" in k_lower or "wk" in k_lower:
+                        found_wk = ("ARGON 7D" if cols >= 120 else "7D", b)
+                    elif found_wk is None:
+                        found_wk = ("ARGON" if cols >= 120 else "7D", b)
+
+        elif is_3p:
+            # Third-party model check
+            for k, b in quota_data.items():
+                if not isinstance(b, dict):
+                    continue
+                k_lower = k.lower()
+                if "3p" in k_lower or "third_party" in k_lower:
+                    if "5h" in k_lower:
+                        found_5h = ("3P 5H" if cols >= 120 else "5H", b)
+                    elif "week" in k_lower or "7d" in k_lower:
+                        found_wk = ("3P 7D" if cols >= 120 else "7D", b)
+
+        # Fallback to standard Gemini buckets if not found
+        if not found_5h:
+            g_5h = quota_data.get("gemini-5h")
+            if isinstance(g_5h, dict):
+                found_5h = ("5H", g_5h)
+
+        if not found_wk:
+            g_wk = quota_data.get("gemini-weekly")
+            if isinstance(g_wk, dict):
+                found_wk = ("7D", g_wk)
+
+        # Dynamic heuristic match for remaining unmatched buckets
+        if not found_5h or not found_wk:
+            for k, b in quota_data.items():
+                if not isinstance(b, dict):
+                    continue
+                if b.get("remaining_fraction") is None:
+                    continue
+                k_lower = k.lower()
+                if not found_5h and ("5h" in k_lower or "short" in k_lower):
+                    found_5h = ("5H", b)
+                elif not found_wk and ("week" in k_lower or "7d" in k_lower):
+                    found_wk = ("7D", b)
+
+        # Render resolved primary gauges
+        for item in [found_5h, found_wk]:
+            if not item:
+                continue
+            lbl, b_data = item
+            frac = b_data.get("remaining_fraction")
+            if frac is not None:
+                val = safe_float(frac, -1.0)
+                if val >= 0:
+                    pct = val * 100.0
+                    r_sec = safe_float(b_data.get("reset_in_seconds"), -1.0)
+                    quota_parts.append(make_amber_gauge(lbl, pct, reset_sec=r_sec, length=6))
+
+        # Dynamic fallback: if no standard buckets matched, render up to 2 arbitrary buckets
+        if not quota_parts and quota_data:
+            for k, b_data in quota_data.items():
+                if not isinstance(b_data, dict):
+                    continue
+                frac = b_data.get("remaining_fraction")
+                if frac is not None:
+                    val = safe_float(frac, -1.0)
+                    if val >= 0:
+                        pct = val * 100.0
+                        r_sec = safe_float(b_data.get("reset_in_seconds"), -1.0)
+                        raw_lbl = k.upper().replace("_", " ").replace("-", " ")
+                        lbl = raw_lbl[:8].strip()
+                        quota_parts.append(make_amber_gauge(lbl, pct, reset_sec=r_sec, length=6))
+                        if len(quota_parts) >= 2:
+                            break
 
         # 8. System Resources Badge
         ram_str, load_str = get_system_telemetry()
