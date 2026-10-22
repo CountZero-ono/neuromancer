@@ -18,7 +18,29 @@
 - **🔋 Laptop Power Diagnostics:** Auto-detects AC mains vs battery percentage (`[PWR ⚡ AC]` / `[PWR 🔋 75%]`), hiding automatically on desktop machines.
 - **📦 Project Telemetry Badge:** Auto-detects project workspace from telemetry JSON, Git repository root, or directory fallback (`📦 neuromancer`).
 - **🖥️ Onyx Deck Framework:** Matrix Cyan accents, dirty Git indicators, and real-time CPU load & RAM diagnostics.
+- **✨ 3-Tier Icon Themes (Zero Font Dependencies):** Universal `unicode` mode by default (`📁`, `💬`, `📦`, `⚡`) requiring zero patched fonts, with optional `nerd` mode (``, `󰍪`) and `ascii` mode (`»`, `#`).
 - **🚀 1-Step Installation:** Auto-configures `~/.gemini/antigravity-cli/settings.json`.
+
+---
+
+## ⚙️ Configuration & Icon Themes
+
+Neuromancer is 100% zero-tofu out of the box. You can customize the icon theme via the `NEUROMANCER_ICONS` environment variable or `~/.config/neuromancer/config.json`:
+
+```bash
+# Set in your ~/.bashrc or ~/.zshrc:
+export NEUROMANCER_ICONS="unicode"  # Default: universal standard emojis (📁, 💬, 📦, ⚡)
+# export NEUROMANCER_ICONS="nerd"    # For riced setups with patched Nerd Fonts v3 (, 󰍪)
+# export NEUROMANCER_ICONS="ascii"   # Minimal plain ASCII/symbols (», #, git:)
+```
+
+Or via JSON configuration (`~/.config/neuromancer/config.json`):
+
+```json
+{
+  "icons": "unicode"
+}
+```
 
 ---
 

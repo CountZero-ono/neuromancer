@@ -28,19 +28,86 @@ MAGENTA_NEON = "\033[38;5;135m"     # Neon Purple (Tool Use)
 WHITE_BRIGHT = "\033[38;5;255m\033[1m"
 SHADOW_GRAY = "\033[38;5;238m"     # Dark Shadow for empty gauge blocks
 
-# ─── Icons ─────────────────────────────────────────────────────────────────────
-ICON_READY = "●"
-ICON_THINKING = "◆"
-ICON_WORKING = "⚙"
-ICON_TOOL = "🔧"
-ICON_UNKNOWN = "⏳"
-ICON_VCS = ""
-ICON_MODEL = "⚡"
-ICON_CONV = "󰍪"
-ICON_DIR = ""
-ICON_RESET = "⌛"
-ICON_PROJ = "📦"
-ICON_HOST = "󰒋"
+# ─── Icon Presets & Configuration ──────────────────────────────────────────────
+# Themes: 'unicode' (Default, zero font dependencies), 'nerd', 'ascii'
+ICON_THEMES = {
+    "unicode": {
+        "READY": "●",
+        "THINKING": "◆",
+        "WORKING": "⚙",
+        "TOOL": "🔧",
+        "UNKNOWN": "⏳",
+        "VCS": "⎇",
+        "MODEL": "⚡",
+        "CONV": "💬",
+        "DIR": "📁",
+        "RESET": "⌛",
+        "PROJ": "📦",
+        "HOST": "💻",
+    },
+    "nerd": {
+        "READY": "●",
+        "THINKING": "◆",
+        "WORKING": "⚙",
+        "TOOL": "🔧",
+        "UNKNOWN": "⏳",
+        "VCS": "",
+        "MODEL": "⚡",
+        "CONV": "󰍪",
+        "DIR": "",
+        "RESET": "⌛",
+        "PROJ": "📦",
+        "HOST": "󰒋",
+    },
+    "ascii": {
+        "READY": "*",
+        "THINKING": "~",
+        "WORKING": "#",
+        "TOOL": "+",
+        "UNKNOWN": "?",
+        "VCS": "git:",
+        "MODEL": "@",
+        "CONV": "id:",
+        "DIR": "»",
+        "RESET": "reset:",
+        "PROJ": "pkg:",
+        "HOST": "host:",
+    },
+}
+
+
+def _resolve_icon_theme() -> dict:
+    theme_name = os.environ.get("NEUROMANCER_ICONS", "").strip().lower()
+    if theme_name not in ICON_THEMES:
+        config_path = os.path.expanduser("~/.config/neuromancer/config.json")
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                    cfg_theme = str(cfg.get("icons") or "").strip().lower()
+                    if cfg_theme in ICON_THEMES:
+                        theme_name = cfg_theme
+            except Exception:
+                pass
+    if theme_name not in ICON_THEMES:
+        theme_name = "unicode"
+    return ICON_THEMES[theme_name]
+
+
+_ICONS = _resolve_icon_theme()
+
+ICON_READY = _ICONS["READY"]
+ICON_THINKING = _ICONS["THINKING"]
+ICON_WORKING = _ICONS["WORKING"]
+ICON_TOOL = _ICONS["TOOL"]
+ICON_UNKNOWN = _ICONS["UNKNOWN"]
+ICON_VCS = _ICONS["VCS"]
+ICON_MODEL = _ICONS["MODEL"]
+ICON_CONV = _ICONS["CONV"]
+ICON_DIR = _ICONS["DIR"]
+ICON_RESET = _ICONS["RESET"]
+ICON_PROJ = _ICONS["PROJ"]
+ICON_HOST = _ICONS["HOST"]
 
 def safe_int(val, default: int = 0) -> int:
     try:

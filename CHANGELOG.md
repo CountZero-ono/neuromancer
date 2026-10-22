@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-10-22
+
+### Added
+- **3-Tier Icon Engine & Zero-Tofu Compatibility**: Added themeable icon presets (`unicode` as default, `nerd`, `ascii`) configurable via `NEUROMANCER_ICONS` environment variable or `~/.config/neuromancer/config.json`.
+- **Universal Zero-Dependency Default (`unicode`)**: Replaced Nerd Font Private Use Area (PUA) glyphs (`\uea83` directory icon, `\U000f036a` conversation icon) with standard Unicode symbols (`📁` folder, `💬` conversation), eliminating broken tofu blocks on unpatched terminals (macOS Terminal, Windows Terminal, vanilla Linux distros).
+- **Nerd Font Preset (`nerd`)**: Preserved full PUA glyphs (``, `󰍪`, ``) for riced setups with patched Nerd Fonts v3.
+- **Minimalist ASCII Preset (`ascii`)**: Added plain-text symbol set (`»`, `#`, `git:`) for monochrome minimalists and low-overhead serial/SSH sessions.
+
 ## [1.2.0] - 2026-10-17
 
 ### Added
