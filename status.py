@@ -163,20 +163,30 @@ def format_reset_time(sec: float) -> str:
         return ""
 
 
-def make_amber_gauge(label: str, pct: float, reset_sec: float = -1, length: int = 8) -> str:
+def make_amber_gauge(label: str, pct: float, reset_sec: float = -1, length: int = 8, is_usage: bool = False) -> str:
     """Renders a Neuromancer Amber Segmented Gauge: [LABEL ▰▰▰▰▰▱▱▱▱▱ 65% ⌛1h]"""
     try:
         pct_val = safe_float(pct, 0.0)
         pct_val = max(0.0, min(100.0, pct_val))
         filled_count = safe_int(round(pct_val * length / 100.0), 0)
 
-        # Color based on remaining %
-        if pct_val > 50:
-            fill_color = AMBER_BRIGHT
-        elif pct_val >= 20:
-            fill_color = AMBER_WARM
+        # Color thresholds: usage vs remaining capacity
+        if is_usage:
+            # High usage triggers alert, low usage is healthy
+            if pct_val > 80:
+                fill_color = RED_ALERT
+            elif pct_val >= 50:
+                fill_color = AMBER_WARM
+            else:
+                fill_color = AMBER_BRIGHT
         else:
-            fill_color = RED_ALERT
+            # High remaining capacity is healthy, low remaining is critical
+            if pct_val > 50:
+                fill_color = AMBER_BRIGHT
+            elif pct_val >= 20:
+                fill_color = AMBER_WARM
+            else:
+                fill_color = RED_ALERT
 
         filled_str = f"{fill_color}{'▰' * filled_count}{RESET}"
         empty_str = f"{SHADOW_GRAY}{'▱' * (length - filled_count)}{RESET}"
@@ -437,7 +447,7 @@ def render_deck(data: dict) -> str:
         ctx_used = safe_int(cw.get("used_tokens") or cw.get("current_usage"), in_t + out_t)
 
         gauge_len = 8 if cols >= 120 else 6
-        ctx_gauge = make_amber_gauge("CTX", ctx_used_pct, length=gauge_len)
+        ctx_gauge = make_amber_gauge("CTX", ctx_used_pct, length=gauge_len, is_usage=True)
 
         tok_info = ""
         if ctx_used > 0 or ctx_size > 0:

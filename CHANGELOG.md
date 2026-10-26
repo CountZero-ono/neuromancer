@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-10-26
+
+### Fixed
+- **Inverted Context Gauge Thresholds**: Fixed inverted alert thresholds in `make_amber_gauge()` by adding an `is_usage=True` mode for CTX. Low context usage (<50%) now correctly renders healthy bright amber instead of falsely triggering crimson Red Alert. Red Alert is now reserved for high context saturation (>80%).
+
 ## [1.3.0] - 2026-10-22
 
 ### Added
