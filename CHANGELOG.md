@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-11-22
+
+### Fixed
+- **Context Ratio Fallback After Compaction**: Updated `ctx_used` fallback in `status.py` to use live `input_tokens` (or `ctx_size * ctx_used_pct`) instead of `in_t + out_t` when `used_tokens`/`current_usage` are omitted, preventing cumulative session `output_tokens` from inflating the `CTX` ratio (e.g. showing `566.3k / 1M` when live context is `5%`).
+
 ## [1.4.0] - 2026-11-22
 
 ### Added

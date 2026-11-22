@@ -510,7 +510,8 @@ def render_deck(data: dict) -> str:
         in_t = safe_int(cw.get("total_input_tokens") or cw.get("input_tokens"), 0)
         out_t = safe_int(cw.get("total_output_tokens") or cw.get("output_tokens"), 0)
         ctx_size = safe_int(cw.get("context_window_size") or cw.get("max_tokens") or cw.get("token_limit"), 0)
-        ctx_used = safe_int(cw.get("used_tokens") or cw.get("current_usage"), in_t + out_t)
+        fallback_used = in_t if in_t > 0 else (int(ctx_size * (ctx_used_pct / 100.0)) if ctx_size > 0 and ctx_used_pct > 0 else 0)
+        ctx_used = safe_int(cw.get("used_tokens") or cw.get("current_usage"), fallback_used)
 
         gauge_len = 8 if cols >= 120 else 6
         ctx_gauge = make_amber_gauge("CTX", ctx_used_pct, length=gauge_len, is_usage=True)
