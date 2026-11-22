@@ -368,6 +368,55 @@ def get_project_name(data: dict, cwd: str) -> str:
     return ""
 
 
+def get_orchestrator_roles(data: dict) -> tuple[str, str]:
+    """Resolves orchestrator (planner) and executor models from payload or agy settings.json."""
+    planner = ""
+    executor = ""
+    try:
+        if isinstance(data, dict):
+            orch = data.get("orchestrator")
+            if isinstance(orch, dict):
+                planner = str(orch.get("planner") or "").strip()
+                executor = str(orch.get("executor") or "").strip()
+            model_obj = data.get("model")
+            if isinstance(model_obj, dict):
+                planner = planner or str(model_obj.get("planner") or "").strip()
+                executor = executor or str(model_obj.get("executor") or "").strip()
+            planner = planner or str(data.get("planner") or "").strip()
+            executor = executor or str(data.get("executor") or "").strip()
+
+        if not planner or not executor:
+            cfg_dir = os.environ.get("ANTIGRAVITY_CLI_DIR") or os.path.expanduser("~/.gemini/antigravity-cli")
+            settings_path = os.path.join(cfg_dir, "settings.json")
+            if os.path.exists(settings_path):
+                with open(settings_path, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                orch_cfg = cfg.get("orchestrator") or {}
+                if isinstance(orch_cfg, dict):
+                    planner = planner or str(orch_cfg.get("planner") or "").strip()
+                    executor = executor or str(orch_cfg.get("executor") or "").strip()
+    except Exception:
+        pass
+    return planner, executor
+
+
+def _short_model_name(name: str) -> str:
+    short = re.sub(r"\bGemini\s+", "G", name)
+    short = re.sub(r"\bClaude\s+", "", short)
+    return short.strip()
+
+
+def _classify_model_family(text: str) -> str:
+    t = text.lower()
+    if "argon" in t or "g1-pro" in t:
+        return "argon"
+    if any(k in t for k in ("claude", "opus", "sonnet", "gpt", "oss", "3p", "third_party")):
+        return "3p"
+    if any(k in t for k in ("gemini", "neon", "hydrogen", "flash")):
+        return "gemini"
+    return ""
+
+
 # ─── Render Neuromancer Deck Telemetry ─────────────────────────────────────────
 def render_deck(data: dict) -> str:
     try:
@@ -393,9 +442,26 @@ def render_deck(data: dict) -> str:
         model_obj = data.get("model") or {}
         if isinstance(model_obj, dict):
             model_name = model_obj.get("display_name") or model_obj.get("id") or "AGY"
+            model_id = str(model_obj.get("id") or "")
         else:
             model_name = str(model_obj or "AGY")
-        model_str = f"{CYAN}{BOLD}{ICON_MODEL} {model_name}{RESET}"
+            model_id = ""
+
+        is_orchestrator = "orchestrator" in model_name.lower() or "orchestrator" in model_id.lower()
+        orch_planner = ""
+        orch_executor = ""
+        if is_orchestrator:
+            orch_planner, orch_executor = get_orchestrator_roles(data)
+
+        if is_orchestrator and (orch_planner or orch_executor):
+            p_disp = orch_planner if cols >= 130 else _short_model_name(orch_planner or "?")
+            e_disp = orch_executor if cols >= 130 else _short_model_name(orch_executor or "?")
+            model_str = (
+                f"{CYAN}{BOLD}{ICON_MODEL} Orch:{RESET} {AMBER_BRIGHT}{p_disp or '?'}{RESET}"
+                f" {FRAME_COLOR}→{RESET} {CYAN}Exec:{RESET} {WHITE_BRIGHT}{e_disp or '?'}{RESET}"
+            )
+        else:
+            model_str = f"{CYAN}{BOLD}{ICON_MODEL} {model_name}{RESET}"
 
         # 3. Project Name
         cwd = str(data.get("cwd") or "")
@@ -467,9 +533,18 @@ def render_deck(data: dict) -> str:
             quota_data = {}
 
         quota_parts = []
-        model_lower = model_name.lower()
-        is_argon = "argon" in model_lower
-        is_3p = "gemini" not in model_lower
+        if is_orchestrator:
+            family = (
+                _classify_model_family(orch_planner)
+                or _classify_model_family(orch_executor)
+                or _classify_model_family(f"{model_name} {model_id}")
+                or "gemini"
+            )
+        else:
+            family = _classify_model_family(f"{model_name} {model_id}") or "3p"
+
+        is_argon = family == "argon"
+        is_3p = family == "3p"
 
         found_5h = None
         found_wk = None

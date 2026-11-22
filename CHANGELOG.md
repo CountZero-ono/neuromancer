@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-11-22
+
+### Added
+- **Orchestrator & Executor Telemetry**: Automatically detects Antigravity CLI Orchestrator mode and displays both the active **Orchestrator (Planner)** and **Executor** models (`⚡ Orch: ... → Exec: ...`) from the telemetry payload or `~/.gemini/antigravity-cli/settings.json`, with compact model shortening on narrow terminals (`<130` cols).
+
+### Fixed
+- **Orchestrator & 3P Quota Bucket Resolution**: Replaced the `"gemini" not in model_name` heuristic with `_classify_model_family()` so Gemini, Argon, and 3P (Claude Opus/Sonnet, GPT-OSS) Orchestrator/Executor combinations resolve their respective `5H` / `7D` / `ARGON` quota buckets accurately.
+
 ## [1.3.1] - 2026-10-26
 
 ### Fixed
